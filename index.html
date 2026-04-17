@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enterprise Device Inventory Tracker</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <section id="loginScreen" class="login-screen">
+    <div class="login-shell">
+      <article class="card login-card">
+        <div class="card-header">
+          <div>
+            <p class="card-kicker">Secure Access</p>
+            <h2>Device Lifecycle Tracker Login</h2>
+          </div>
+        </div>
+
+        <form id="loginForm" class="form-stack">
+          <label>
+            <span>Username</span>
+            <input id="loginUsernameInput" type="text" placeholder="Enter username" required>
+          </label>
+
+          <label>
+            <span>Password</span>
+            <input id="loginPasswordInput" type="password" placeholder="Enter password" required>
+          </label>
+
+          <button type="submit">Sign In</button>
+        </form>
+      </article>
+
+      <article class="card login-card">
+        <div class="card-header">
+          <div>
+            <p class="card-kicker">Demo Credentials</p>
+            <h2>Sample Accounts</h2>
+          </div>
+        </div>
+        <div class="stack-list">
+          <div class="stack-item">
+            <strong>Admin</strong>
+            <p>Username: `admin.yyz`</p>
+            <p>Password: `Admin123!`</p>
+          </div>
+          <div class="stack-item">
+            <strong>Ramp User</strong>
+            <p>Username: `ramp.yyz`</p>
+            <p>Password: `Ramp123!`</p>
+          </div>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <p class="brand-kicker">Ramp Ops</p>
+        <h1>Device Lifecycle Tracker</h1>
+        <p class="brand-copy">Inventory, assignment, repairs, and offline alerts for Zebra TC78 scanners.</p>
+      </div>
+
+      <nav class="nav-tabs" aria-label="Primary">
+        <button class="nav-tab is-active" type="button" data-view-target="dashboard">Dashboard</button>
+        <button class="nav-tab" type="button" data-view-target="kiosk">Agent Kiosk</button>
+        <button class="nav-tab" type="button" data-view-target="directory">Device Directory</button>
+        <button class="nav-tab" type="button" data-view-target="repairs">Repair Center</button>
+        <button class="nav-tab" type="button" data-view-target="admin" data-admin-only="true">Admin Console</button>
+      </nav>
+
+      <section class="sidebar-panel">
+        <h2>Operational Snapshot</h2>
+        <div id="snapshotStats" class="mini-stats"></div>
+      </section>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Enterprise Inventory</p>
+          <h2 id="viewTitle">Admin Dashboard</h2>
+        </div>
+        <div class="topbar-actions">
+          <div id="backendBadge" class="session-badge"></div>
+          <div id="sessionBadge" class="session-badge"></div>
+          <button id="seedResetButton" class="ghost-button" type="button">Reset Demo Data</button>
+          <button id="logoutButton" class="ghost-button" type="button">Logout</button>
+        </div>
+      </header>
+
+      <div id="toastRegion" class="toast-region" aria-live="polite" aria-atomic="true"></div>
+
+      <section id="dashboard" class="view-panel is-active" aria-labelledby="viewTitle">
+        <article class="card dashboard-filter-card">
+          <div class="toolbar">
+            <label>
+              <span>Station Filter</span>
+              <select id="dashboardStationFilter">
+                <option value="All">All Stations</option>
+              </select>
+            </label>
+          </div>
+        </article>
+
+        <div class="card-grid metrics-grid" id="metricCards"></div>
+
+        <div class="card-grid dashboard-grid">
+          <article class="card">
+            <div class="card-header">
+              <div>
+                <p class="card-kicker">Checked Out Now</p>
+                <h3>Active Device Assignments</h3>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Station</th>
+                    <th>Device</th>
+                    <th>Serial</th>
+                    <th>Assigned Agent</th>
+                    <th>Checkout Time</th>
+                  </tr>
+                </thead>
+                <tbody id="checkedOutTableBody"></tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card-header">
+              <div>
+                <p class="card-kicker">Station Summary</p>
+                <h3>Devices By Station</h3>
+              </div>
+            </div>
+            <ul id="stationSummaryList" class="stack-list"></ul>
+          </article>
+
+          <article class="card">
+            <div class="card-header">
+              <div>
+                <p class="card-kicker">Warranty Watch</p>
+                <h3>Expiring Within 30 Days</h3>
+              </div>
+            </div>
+            <ul id="warrantyList" class="stack-list"></ul>
+          </article>
+
+          <article class="card">
+            <div class="card-header">
+              <div>
+                <p class="card-kicker">Repair Queue</p>
+                <h3>Devices In Repair</h3>
+              </div>
+            </div>
+            <ul id="repairQueueList" class="stack-list"></ul>
+          </article>
+
+          <article class="card alert-card">
+            <div class="card-header">
+              <div>
+                <p class="card-kicker">Offline Alert</p>
+                <h3>Checked Out & Silent > 24h</h3>
+              </div>
+            </div>
+            <ul id="offlineAlertList" class="stack-list"></ul>
+          </article>
+        </div>
+      </section>
+
+      <section id="kiosk" class="view-panel">
+        <div class="card-grid kiosk-grid">
+          <article class="card kiosk-card">
+            <div class="card-header">
+              <div>
+                <p class="card-kicker">Agent Station</p>
+                <h3>Check Out / Return</h3>
+              </div>
+            </div>
+
+            <form id="kioskForm" class="form-stack">
+              <label>
+                <span>Agent ID</span>
+                <input id="agentIdInput" name="agentId" type="text" placeholder="Scan or enter Agent ID" required>
+              </label>
+
+              <label>
+                <span>Device Serial Number</span>
+                <div class="scan-input-row">
+                  <input id="deviceSerialInput" name="serial" type="text" placeholder="Scan or enter device serial" required>
+                  <button type="button" class="secondary scan-button" id="scanDeviceBarcodeButton">Scan Barcode</button>
+                </div>
+              </label>
+
+              <label>
+                <span>Checkout Duration</span>
+                <select id="checkoutDurationInput" name="checkoutDuration">
+                  <option value="1">1 day</option>
+                  <option value="2">2 days</option>
+                  <option value="3">3 days</option>
+                  <option value="5">5 days</option>
+                  <option value="7">7 days</option>
+                  <option value="10">10 days</option>
+                </select>
+              </label>
+
+              <div class="button-row">
+                <button type="submit" data-action="checkout">Check Out Device</button>
+                <button type="submit" class="secondary" data-action="return">Return Device</button>
+                <button type="button" class="danger" id="reportDamageButton">Report Damage</button>
+              </div>
+            </form>
+
+            <div id="durationWarning" class="duration-warning is-hidden">
+              This checkout is longer than 5 days. Please make sure the device is fully charged and charger access is planned.
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card-header">
+              <div>
+                <p class="card-kicker">Device Lookup</p>
+                <h3>Current Device Summary</h3>
+              </div>
+            </div>
+            <div id="kioskLookupResult" class="detail-placeholder">
+              Enter an agent ID and serial number to validate an assignment.
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="directory" class="view-panel">
+        <article class="card">
+          <div class="card-header">
+            <div>
+              <p class="card-kicker">Inventory</p>
+              <h3>Device Directory</h3>
+            </div>
+          </div>
+
+          <div class="directory-admin-grid">
+            <form id="addDeviceForm" class="card inset-card form-stack">
+              <div>
+                <p class="card-kicker">Admin Action</p>
+                <h4>Add New Device</h4>
+                <p class="form-copy">Create a new scanner record and make it available to the rest of the app immediately.</p>
+              </div>
+
+              <label>
+                <span>Serial Number</span>
+                <input id="newDeviceSerialInput" type="text" placeholder="TC78-0301" required>
+              </label>
+
+              <div class="barcode-preview-card">
+                <div>
+                  <p class="card-kicker">Barcode Preview</p>
+                  <h4>Generated For New Device</h4>
+                </div>
+                <div id="newDeviceBarcodePreview" class="barcode-preview"></div>
+              </div>
+
+              <label>
+                <span>Device Name</span>
+                <input id="newDeviceNameInput" type="text" placeholder="Scanner 301">
+              </label>
+
+              <div class="split-fields">
+                <label>
+                  <span>Station (IATA)</span>
+                  <input id="newDeviceStationInput" type="text" placeholder="YYZ" maxlength="3" required>
+                </label>
+
+                <label>
+                  <span>Initial Status</span>
+                  <select id="newDeviceStatusSelect">
+                    <option value="Available">Available</option>
+                    <option value="In Repair">In Repair</option>
+                    <option value="Lost">Lost</option>
+                    <option value="Retired">Retired</option>
+                  </select>
+                </label>
+
+                <label>
+                  <span>Warranty Expiration</span>
+                  <input id="newDeviceWarrantyInput" type="date" required>
+                </label>
+              </div>
+
+              <button type="submit">Add Device</button>
+            </form>
+
+            <div class="card inset-card directory-note">
+              <p class="card-kicker">How It Works</p>
+              <h4>Inventory Rules</h4>
+              <p>New devices are added to browser storage, become searchable in the directory, and are included in dashboard metrics and repair workflows right away.</p>
+            </div>
+          </div>
+
+          <div class="toolbar">
+            <label>
+              <span>Search</span>
+              <input id="directorySearch" type="search" placeholder="Search by name or serial">
+            </label>
+
+            <label>
+              <span>Status</span>
+              <select id="directoryStatusFilter">
+                <option value="All">All Statuses</option>
+                <option value="Available">Available</option>
+                <option value="Checked Out">Checked Out</option>
+                <option value="In Repair">In Repair</option>
+                <option value="Lost">Lost</option>
+                <option value="Retired">Retired</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="directory-layout">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Station</th>
+                    <th>Device</th>
+                    <th>Serial</th>
+                    <th>Status</th>
+                    <th>Warranty</th>
+                    <th>Assigned Agent</th>
+                  </tr>
+                </thead>
+                <tbody id="directoryTableBody"></tbody>
+              </table>
+            </div>
+
+            <aside class="detail-card">
+              <h4>Device Details</h4>
+              <div id="deviceDetailPanel" class="detail-placeholder">
+                Select a device from the directory to view status, history, and repair records.
+              </div>
+            </aside>
+          </div>
+        </article>
+      </section>
+
+      <section id="repairs" class="view-panel">
+        <div class="card-grid repair-grid">
+          <article class="card">
+            <div class="card-header">
+              <div>
+                <p class="card-kicker">Submit Ticket</p>
+                <h3>Damage / Repair Form</h3>
+              </div>
+            </div>
+
+            <form id="repairForm" class="form-stack">
+              <label>
+                <span>Device</span>
+                <select id="repairDeviceSelect" required></select>
+              </label>
+
+              <label>
+                <span>Reported By</span>
+                <select id="repairAgentSelect" required></select>
+              </label>
+
+              <label>
+                <span>Issue Description</span>
+                <textarea id="repairIssueInput" rows="5" placeholder="Describe the issue clearly" required></textarea>
+              </label>
+
+              <button type="submit">Create Repair Ticket</button>
+            </form>
+          </article>
+
+          <article class="card">
+            <div class="card-header">
+              <div>
+                <p class="card-kicker">Open Work</p>
+                <h3>Repair Tickets</h3>
+              </div>
+            </div>
+            <div id="repairTicketList" class="ticket-list"></div>
+          </article>
+        </div>
+      </section>
+
+      <section id="admin" class="view-panel">
+        <div class="card-grid repair-grid">
+          <article class="card">
+            <div class="card-header">
+              <div>
+                <p class="card-kicker">User Access</p>
+                <h3>Add New User</h3>
+              </div>
+            </div>
+
+            <form id="addUserForm" class="form-stack">
+              <label>
+                <span>Agent ID</span>
+                <input id="newUserAgentIdInput" type="text" placeholder="AG251" required>
+              </label>
+
+              <label>
+                <span>Full Name</span>
+                <input id="newUserFullNameInput" type="text" placeholder="Taylor Morgan" required>
+              </label>
+
+              <div class="split-fields admin-split">
+                <label>
+                  <span>Role</span>
+                  <select id="newUserRoleSelect">
+                    <option value="Agent">Ramp User</option>
+                    <option value="Admin/Supervisor">Admin</option>
+                  </select>
+                </label>
+
+                <label>
+                  <span>Username</span>
+                  <input id="newUserUsernameInput" type="text" placeholder="taylor.yyz" required>
+                </label>
+
+                <label>
+                  <span>Password</span>
+                  <input id="newUserPasswordInput" type="text" placeholder="TempPass123!" required>
+                </label>
+              </div>
+
+              <button type="submit">Create User</button>
+            </form>
+          </article>
+
+          <article class="card">
+            <div class="card-header">
+              <div>
+                <p class="card-kicker">Stations</p>
+                <h3>Add New Station</h3>
+              </div>
+            </div>
+
+            <form id="addStationForm" class="form-stack">
+              <div class="split-fields admin-split">
+                <label>
+                  <span>IATA Code</span>
+                  <input id="newStationCodeInput" type="text" placeholder="LAX" maxlength="3" required>
+                </label>
+
+                <label>
+                  <span>Station Name</span>
+                  <input id="newStationNameInput" type="text" placeholder="Los Angeles" required>
+                </label>
+              </div>
+
+              <button type="submit">Add Station</button>
+            </form>
+
+            <div>
+              <p class="section-title">Configured Stations</p>
+              <div id="stationAdminList" class="stack-list"></div>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <template id="metricCardTemplate">
+    <article class="metric-card">
+      <p class="metric-label"></p>
+      <strong class="metric-value"></strong>
+      <span class="metric-meta"></span>
+    </article>
+  </template>
+
+  <div id="scannerModal" class="scanner-modal is-hidden" aria-hidden="true">
+    <div class="scanner-dialog">
+      <div class="card-header">
+        <div>
+          <p class="card-kicker">Camera Scanner</p>
+          <h3>Scan Device Barcode</h3>
+        </div>
+        <button type="button" class="ghost-button" id="closeScannerButton">Close</button>
+      </div>
+      <video id="scannerVideo" class="scanner-video" autoplay muted playsinline></video>
+      <p id="scannerStatus" class="scanner-status">Point the camera at a device barcode.</p>
+    </div>
+  </div>
+
+  <script>
+    window.APP_CONFIG = window.APP_CONFIG || {
+      supabaseUrl: "",
+      supabaseAnonKey: "",
+      useSupabase: false,
+      seedDemoDataOnEmptyDatabase: true,
+    };
+  </script>
+  <script src="supabase-config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="app.js"></script>
+</body>
+</html>
