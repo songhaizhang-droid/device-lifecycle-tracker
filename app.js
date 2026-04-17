@@ -85,6 +85,7 @@ const elements = {
   loginForm: document.getElementById("loginForm"),
   loginUsernameInput: document.getElementById("loginUsernameInput"),
   loginPasswordInput: document.getElementById("loginPasswordInput"),
+  loginErrorMessage: document.getElementById("loginErrorMessage"),
   navTabs: document.querySelectorAll(".nav-tab"),
   viewTitle: document.getElementById("viewTitle"),
   snapshotStats: document.getElementById("snapshotStats"),
@@ -297,6 +298,7 @@ function applyRoleVisibility() {
 
 function handleLogin(event) {
   event.preventDefault();
+  hideLoginError();
   const username = elements.loginUsernameInput.value.trim().toLowerCase();
   const password = elements.loginPasswordInput.value;
   const agent = state.agents.find(
@@ -304,6 +306,7 @@ function handleLogin(event) {
   );
 
   if (!agent) {
+    showLoginError("Invalid username or password.");
     toast("Invalid username or password.", "error");
     return;
   }
@@ -317,8 +320,18 @@ function handleLogin(event) {
 function handleLogout() {
   closeBarcodeScanner();
   state.session = null;
+  hideLoginError();
   applyAuthState();
   saveState();
+}
+
+function showLoginError(message) {
+  elements.loginErrorMessage.textContent = message;
+  elements.loginErrorMessage.classList.remove("is-hidden");
+}
+
+function hideLoginError() {
+  elements.loginErrorMessage.classList.add("is-hidden");
 }
 
 function renderApp() {

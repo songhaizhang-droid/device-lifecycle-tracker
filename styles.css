@@ -60,14 +60,27 @@ textarea {
 }
 
 .login-shell {
-  width: min(980px, 100%);
+  width: min(520px, 100%);
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 20px;
 }
 
 .login-card {
   padding: 28px;
+}
+
+.inline-error {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(191, 75, 69, 0.12);
+  border: 1px solid rgba(191, 75, 69, 0.2);
+  color: #a33631;
+  font-weight: 600;
+}
+
+.inline-error.is-hidden {
+  display: none;
 }
 
 .sidebar {
