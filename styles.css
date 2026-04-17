@@ -70,6 +70,10 @@ textarea {
   padding: 28px;
 }
 
+.demo-credentials {
+  margin-top: 22px;
+}
+
 .inline-error {
   padding: 12px 14px;
   border-radius: 14px;
@@ -539,6 +543,37 @@ button.danger {
 
 .detail-card {
   min-height: 620px;
+}
+
+.admin-users-card {
+  margin-top: 24px;
+}
+
+.admin-user-layout {
+  align-items: start;
+}
+
+.admin-user-layout .detail-card {
+  min-height: auto;
+}
+
+.admin-user-layout .table-wrap {
+  max-height: 680px;
+  overflow: auto;
+}
+
+.table-action-cell {
+  width: 120px;
+}
+
+.inline-action {
+  width: 100%;
+  min-width: 88px;
+}
+
+.edit-form-empty #editUserForm {
+  opacity: 0.45;
+  pointer-events: none;
 }
 
 .detail-placeholder {

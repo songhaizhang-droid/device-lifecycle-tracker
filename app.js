@@ -97,8 +97,11 @@ const elements = {
   repairQueueList: document.getElementById("repairQueueList"),
   offlineAlertList: document.getElementById("offlineAlertList"),
   kioskForm: document.getElementById("kioskForm"),
+  kioskAgentField: document.getElementById("kioskAgentField"),
   agentIdInput: document.getElementById("agentIdInput"),
   deviceSerialInput: document.getElementById("deviceSerialInput"),
+  agentSuggestions: document.getElementById("agentSuggestions"),
+  deviceSuggestions: document.getElementById("deviceSuggestions"),
   checkoutDurationInput: document.getElementById("checkoutDurationInput"),
   scanDeviceBarcodeButton: document.getElementById("scanDeviceBarcodeButton"),
   reportDamageButton: document.getElementById("reportDamageButton"),
@@ -126,6 +129,17 @@ const elements = {
   newUserRoleSelect: document.getElementById("newUserRoleSelect"),
   newUserUsernameInput: document.getElementById("newUserUsernameInput"),
   newUserPasswordInput: document.getElementById("newUserPasswordInput"),
+  userAdminSearch: document.getElementById("userAdminSearch"),
+  userAdminTableBody: document.getElementById("userAdminTableBody"),
+  editUserForm: document.getElementById("editUserForm"),
+  editUserOriginalAgentId: document.getElementById("editUserOriginalAgentId"),
+  editUserAgentIdInput: document.getElementById("editUserAgentIdInput"),
+  editUserFullNameInput: document.getElementById("editUserFullNameInput"),
+  editUserRoleSelect: document.getElementById("editUserRoleSelect"),
+  editUserUsernameInput: document.getElementById("editUserUsernameInput"),
+  editUserPasswordInput: document.getElementById("editUserPasswordInput"),
+  cancelUserEditButton: document.getElementById("cancelUserEditButton"),
+  userEditPlaceholder: document.getElementById("userEditPlaceholder"),
   addStationForm: document.getElementById("addStationForm"),
   newStationCodeInput: document.getElementById("newStationCodeInput"),
   newStationNameInput: document.getElementById("newStationNameInput"),
@@ -143,6 +157,7 @@ const elements = {
 };
 
 let selectedDeviceSerial = null;
+let selectedAdminAgentId = null;
 
 bindEvents();
 initializeApp();
@@ -178,9 +193,15 @@ function bindEvents() {
   elements.addDeviceForm.addEventListener("submit", handleAddDevice);
   elements.repairForm.addEventListener("submit", handleRepairSubmit);
   elements.addUserForm.addEventListener("submit", handleAddUser);
+  elements.userAdminSearch.addEventListener("input", renderAgentAdminList);
+  elements.userAdminTableBody.addEventListener("click", handleAgentAdminSelection);
+  elements.editUserForm.addEventListener("submit", handleEditUser);
+  elements.cancelUserEditButton.addEventListener("click", clearUserEditSelection);
   elements.addStationForm.addEventListener("submit", handleAddStation);
   elements.agentIdInput.addEventListener("input", renderKioskLookup);
   elements.deviceSerialInput.addEventListener("input", renderKioskLookup);
+  elements.agentIdInput.addEventListener("input", renderKioskAutocomplete);
+  elements.deviceSerialInput.addEventListener("input", renderKioskAutocomplete);
   elements.newDeviceSerialInput.addEventListener("input", renderNewDeviceBarcodePreview);
   elements.checkoutDurationInput.addEventListener("change", () => {
     renderDurationWarning();
@@ -294,6 +315,7 @@ function applyRoleVisibility() {
 
   elements.addDeviceForm.closest(".card").hidden = !showAdminView;
   document.getElementById("admin").hidden = !showAdminView;
+  elements.kioskAgentField.hidden = !showAdminView;
 }
 
 function handleLogin(event) {
@@ -312,6 +334,7 @@ function handleLogin(event) {
   }
 
   state.session = { agentId: agent.agentId };
+  elements.agentIdInput.value = agent.agentId;
   elements.loginForm.reset();
   renderApp();
   toast(`Signed in as ${agent.fullName}.`, "success");
@@ -320,6 +343,7 @@ function handleLogin(event) {
 function handleLogout() {
   closeBarcodeScanner();
   state.session = null;
+  elements.agentIdInput.value = "";
   hideLoginError();
   applyAuthState();
   saveState();
@@ -350,9 +374,12 @@ function renderApp() {
   renderDirectoryTable();
   renderRepairTickets();
   renderKioskLookup();
+  renderKioskAutocomplete();
   renderNewDeviceBarcodePreview();
   renderDurationWarning();
   renderStationAdminList();
+  renderAgentAdminList();
+  renderUserEditState();
   renderBackendBadge();
   renderSessionBadge();
   applyRoleVisibility();
@@ -548,10 +575,11 @@ function renderRepairTickets() {
 }
 
 function renderKioskLookup() {
-  const agentId = elements.agentIdInput.value.trim().toUpperCase();
-  const serial = elements.deviceSerialInput.value.trim().toUpperCase();
-  const agent = agentId ? getAgent(agentId) : null;
-  const device = serial ? getDevice(serial) : null;
+  const kioskAgent = getKioskAgent();
+  const agent = kioskAgent;
+  const device = findDeviceFromInput(elements.deviceSerialInput.value);
+  const agentId = agent?.agentId || elements.agentIdInput.value.trim().toUpperCase();
+  const serial = device?.serialNumber || elements.deviceSerialInput.value.trim().toUpperCase();
 
   if (!agentId && !serial) {
     elements.kioskLookupResult.textContent = "Enter an agent ID and serial number to validate an assignment.";
@@ -565,7 +593,8 @@ function renderKioskLookup() {
       <span>${device ? `Station ${device.stationCode || "N/A"}` : "Station pending"}</span>
       ${device ? statusPill(device.status) : ""}
       <span>Checkout duration ${getSelectedCheckoutDuration()} day(s)</span>
-      <span>Agent ${agent ? `${agent.fullName} (${agent.agentId})` : agentId ? "Not found" : "Not entered"}</span>
+      <span>Agent ID ${agent ? agent.agentId : agentId ? agentId : "Not entered"}</span>
+      <span>Agent Name ${agent ? agent.fullName : agentId ? "Not found" : "Not entered"}</span>
       <span>${device ? `Last seen ${formatDateTime(device.lastSeenOnline)}` : "Device lookup pending"}</span>
     </div>
   `;
@@ -591,11 +620,11 @@ async function handleCheckout() {
     return;
   }
 
-  const agentId = elements.agentIdInput.value.trim().toUpperCase();
-  const serial = elements.deviceSerialInput.value.trim().toUpperCase();
+  const agent = getKioskAgent();
+  const device = findDeviceFromInput(elements.deviceSerialInput.value);
+  const agentId = agent?.agentId || elements.agentIdInput.value.trim().toUpperCase();
+  const serial = device?.serialNumber || elements.deviceSerialInput.value.trim().toUpperCase();
   const checkoutDurationDays = getSelectedCheckoutDuration();
-  const agent = getAgent(agentId);
-  const device = getDevice(serial);
 
   if (!agent) {
     toast("Agent ID was not found.", "error");
@@ -604,6 +633,11 @@ async function handleCheckout() {
 
   if (!device) {
     toast("Device serial number was not found.", "error");
+    return;
+  }
+
+  if (!isAdminUser() && agentId !== currentUser().agentId) {
+    toast("Ramp users can only check out devices for themselves.", "error");
     return;
   }
 
@@ -641,8 +675,8 @@ async function handleReturn() {
     return;
   }
 
-  const serial = elements.deviceSerialInput.value.trim().toUpperCase();
-  const device = getDevice(serial);
+  const device = findDeviceFromInput(elements.deviceSerialInput.value);
+  const serial = device?.serialNumber || elements.deviceSerialInput.value.trim().toUpperCase();
 
   if (!device) {
     toast("Device serial number was not found.", "error");
@@ -655,6 +689,11 @@ async function handleReturn() {
 
   if (!activeTransaction) {
     toast("No active checkout record exists for this device.", "error");
+    return;
+  }
+
+  if (!isAdminUser() && activeTransaction.agentId !== currentUser().agentId) {
+    toast("Ramp users can only return devices checked out to themselves.", "error");
     return;
   }
 
@@ -675,14 +714,24 @@ function handleDamageFromKiosk() {
     return;
   }
 
-  const agentId = elements.agentIdInput.value.trim().toUpperCase();
-  const serial = elements.deviceSerialInput.value.trim().toUpperCase();
-  const agent = getAgent(agentId);
-  const device = getDevice(serial);
+  const agent = getKioskAgent();
+  const device = findDeviceFromInput(elements.deviceSerialInput.value);
+  const agentId = agent?.agentId || elements.agentIdInput.value.trim().toUpperCase();
+  const serial = device?.serialNumber || elements.deviceSerialInput.value.trim().toUpperCase();
 
   if (!agent || !device) {
     toast("Enter a valid agent ID and device serial before reporting damage.", "error");
     return;
+  }
+
+  if (!isAdminUser()) {
+    const activeTransaction = state.checkoutHistory.find(
+      (transaction) => transaction.deviceSerial === device.serialNumber && !transaction.checkinAt
+    );
+    if (activeTransaction && activeTransaction.agentId !== currentUser().agentId) {
+      toast("Ramp users can only report damage for their own checked-out devices.", "error");
+      return;
+    }
   }
 
   elements.repairAgentSelect.value = agentId;
@@ -839,6 +888,170 @@ async function handleAddUser(event) {
   await syncDatabase();
   renderApp();
   toast(`${fullName} was added successfully.`, "success");
+}
+
+function renderAgentAdminList() {
+  if (!elements.userAdminTableBody) {
+    return;
+  }
+
+  const searchValue = elements.userAdminSearch.value.trim().toLowerCase();
+  const agents = state.agents
+    .slice()
+    .sort((a, b) => a.fullName.localeCompare(b.fullName))
+    .filter((agent) => {
+      if (!searchValue) {
+        return true;
+      }
+
+      return [
+        agent.agentId,
+        agent.fullName,
+        agent.username || "",
+        agent.role,
+      ].some((value) => value.toLowerCase().includes(searchValue));
+    });
+
+  elements.userAdminTableBody.innerHTML = agents
+    .map((agent) => `
+      <tr class="clickable-row ${selectedAdminAgentId === agent.agentId ? "is-selected" : ""}" data-edit-agent-id="${agent.agentId}">
+        <td>${agent.agentId}</td>
+        <td>${agent.fullName}</td>
+        <td>${agent.role === "Admin/Supervisor" ? "Admin" : "Ramp User"}</td>
+        <td>${agent.username || "None"}</td>
+        <td class="table-action-cell">
+          <button type="button" class="secondary inline-action" data-edit-agent-id="${agent.agentId}">Edit</button>
+        </td>
+      </tr>
+    `)
+    .join("");
+
+  if (!agents.length) {
+    elements.userAdminTableBody.innerHTML = emptyTableRow("No users matched the current search.", 5);
+    if (selectedAdminAgentId) {
+      const selectedAgentStillVisible = state.agents.some((agent) => agent.agentId === selectedAdminAgentId);
+      if (!selectedAgentStillVisible) {
+        clearUserEditSelection();
+      }
+    }
+  }
+}
+
+function renderUserEditState() {
+  const selectedAgent = selectedAdminAgentId ? getAgent(selectedAdminAgentId) : null;
+  const detailCard = elements.editUserForm.closest(".detail-card");
+
+  detailCard.classList.toggle("edit-form-empty", !selectedAgent);
+  elements.userEditPlaceholder.hidden = Boolean(selectedAgent);
+
+  if (!selectedAgent) {
+    elements.editUserForm.reset();
+    elements.editUserOriginalAgentId.value = "";
+    return;
+  }
+
+  elements.editUserOriginalAgentId.value = selectedAgent.agentId;
+  elements.editUserAgentIdInput.value = selectedAgent.agentId;
+  elements.editUserFullNameInput.value = selectedAgent.fullName;
+  elements.editUserRoleSelect.value = selectedAgent.role;
+  elements.editUserUsernameInput.value = selectedAgent.username || "";
+  elements.editUserPasswordInput.value = selectedAgent.password || "";
+}
+
+function handleAgentAdminSelection(event) {
+  const trigger = event.target.closest("[data-edit-agent-id]");
+  if (!trigger) {
+    return;
+  }
+
+  selectedAdminAgentId = trigger.dataset.editAgentId;
+  renderAgentAdminList();
+  renderUserEditState();
+}
+
+function clearUserEditSelection() {
+  selectedAdminAgentId = null;
+  renderAgentAdminList();
+  renderUserEditState();
+}
+
+async function handleEditUser(event) {
+  event.preventDefault();
+
+  if (!isAdminUser()) {
+    toast("Only admins can edit users.", "error");
+    return;
+  }
+
+  const originalAgentId = elements.editUserOriginalAgentId.value.trim().toUpperCase();
+  const nextAgentId = elements.editUserAgentIdInput.value.trim().toUpperCase();
+  const fullName = elements.editUserFullNameInput.value.trim();
+  const role = elements.editUserRoleSelect.value;
+  const username = elements.editUserUsernameInput.value.trim().toLowerCase();
+  const password = elements.editUserPasswordInput.value;
+  const agent = getAgent(originalAgentId);
+
+  if (!agent) {
+    toast("Select a user before saving changes.", "error");
+    return;
+  }
+
+  if (!nextAgentId || !fullName || !username || !password) {
+    toast("Complete all edit user fields before saving.", "error");
+    return;
+  }
+
+  if (nextAgentId !== originalAgentId && getAgent(nextAgentId)) {
+    toast(`Agent ID ${nextAgentId} already exists.`, "error");
+    return;
+  }
+
+  const usernameTaken = state.agents.some((item) =>
+    item.agentId !== originalAgentId && (item.username || "").toLowerCase() === username
+  );
+  if (usernameTaken) {
+    toast(`Username ${username} is already in use.`, "error");
+    return;
+  }
+
+  agent.agentId = nextAgentId;
+  agent.fullName = fullName;
+  agent.role = role;
+  agent.username = username;
+  agent.password = password;
+
+  if (nextAgentId !== originalAgentId) {
+    state.devices.forEach((device) => {
+      if (device.currentAssignedAgentId === originalAgentId) {
+        device.currentAssignedAgentId = nextAgentId;
+      }
+    });
+
+    state.checkoutHistory.forEach((transaction) => {
+      if (transaction.agentId === originalAgentId) {
+        transaction.agentId = nextAgentId;
+      }
+    });
+
+    state.repairTickets.forEach((ticket) => {
+      if (ticket.reportedByAgentId === originalAgentId) {
+        ticket.reportedByAgentId = nextAgentId;
+      }
+    });
+
+    if (state.session?.agentId === originalAgentId) {
+      state.session.agentId = nextAgentId;
+    }
+  }
+
+  selectedAdminAgentId = nextAgentId;
+  elements.agentIdInput.value = isAdminUser() ? elements.agentIdInput.value : nextAgentId;
+  if (activeBackend === "supabase" && nextAgentId !== originalAgentId) {
+    await deleteSupabaseAgentRecord(originalAgentId);
+  }
+  await syncDatabase();
+  renderApp();
+  toast(`${fullName} was updated successfully.`, "success");
 }
 
 async function handleAddStation(event) {
@@ -1109,6 +1322,13 @@ async function upsertTable(table, rows) {
   }
 }
 
+async function deleteSupabaseAgentRecord(agentId) {
+  const { error } = await supabaseClient.from("agents").delete().eq("agent_id", agentId);
+  if (error) {
+    throw error;
+  }
+}
+
 function loadSession() {
   const saved = localStorage.getItem(SESSION_KEY);
   return saved ? JSON.parse(saved) : null;
@@ -1335,6 +1555,74 @@ function getSelectedCheckoutDuration() {
 function renderDurationWarning() {
   const showWarning = getSelectedCheckoutDuration() > 5;
   elements.durationWarning.classList.toggle("is-hidden", !showWarning);
+}
+
+function renderKioskAutocomplete() {
+  const uniqueAgentSuggestions = [];
+  const seenAgentLabels = new Set();
+
+  state.agents
+    .slice()
+    .sort((a, b) => a.fullName.localeCompare(b.fullName))
+    .forEach((agent) => {
+      const label = `${agent.agentId} | ${agent.fullName}`;
+      const normalizedName = agent.fullName.trim().toLowerCase();
+
+      if (!seenAgentLabels.has(label) && !seenAgentLabels.has(normalizedName)) {
+        uniqueAgentSuggestions.push(`<option value="${label}"></option>`);
+        seenAgentLabels.add(label);
+        seenAgentLabels.add(normalizedName);
+      }
+    });
+
+  elements.agentSuggestions.innerHTML = uniqueAgentSuggestions.join("");
+
+  elements.deviceSuggestions.innerHTML = state.devices
+    .slice()
+    .sort((a, b) => a.deviceName.localeCompare(b.deviceName))
+    .map((device) => `<option value="${device.serialNumber} | ${device.deviceName}"></option>`)
+    .join("");
+}
+
+function findAgentFromInput(value) {
+  const raw = value.trim().toUpperCase();
+  const normalized = value.split("|")[0].trim().toUpperCase();
+  if (!normalized) {
+    return null;
+  }
+
+  return state.agents.find((agent) =>
+    agent.agentId.toUpperCase() === normalized ||
+    agent.fullName.toUpperCase() === raw
+  ) || null;
+}
+
+function getKioskAgent() {
+  if (!currentUser()) {
+    return null;
+  }
+
+  if (isAdminUser()) {
+    return findAgentFromInput(elements.agentIdInput.value);
+  }
+
+  if (elements.agentIdInput.value !== currentUser().agentId) {
+    elements.agentIdInput.value = currentUser().agentId;
+  }
+  return currentUser();
+}
+
+function findDeviceFromInput(value) {
+  const raw = value.trim().toUpperCase();
+  const normalized = value.split("|")[0].trim().toUpperCase();
+  if (!normalized) {
+    return null;
+  }
+
+  return state.devices.find((device) =>
+    device.serialNumber.toUpperCase() === normalized ||
+    device.deviceName.toUpperCase() === raw
+  ) || null;
 }
 
 function renderNewDeviceBarcodePreview() {

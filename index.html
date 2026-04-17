@@ -34,6 +34,22 @@
 
           <button type="submit">Sign In</button>
         </form>
+
+        <div class="demo-credentials">
+          <p class="card-kicker">Demo Credentials</p>
+          <div class="stack-list">
+            <div class="stack-item">
+              <strong>Admin</strong>
+              <p>Username: admin.yyz</p>
+              <p>Password: Admin123!</p>
+            </div>
+            <div class="stack-item">
+              <strong>Ramp User</strong>
+              <p>Username: ramp.yyz</p>
+              <p>Password: Ramp123!</p>
+            </div>
+          </div>
+        </div>
       </article>
     </div>
   </section>
@@ -167,15 +183,15 @@
             </div>
 
             <form id="kioskForm" class="form-stack">
-              <label>
+              <label id="kioskAgentField">
                 <span>Agent ID</span>
-                <input id="agentIdInput" name="agentId" type="text" placeholder="Scan or enter Agent ID" required>
+                <input id="agentIdInput" name="agentId" type="text" list="agentSuggestions" placeholder="Search agent ID or name" required>
               </label>
 
               <label>
                 <span>Device Serial Number</span>
                 <div class="scan-input-row">
-                  <input id="deviceSerialInput" name="serial" type="text" placeholder="Scan or enter device serial" required>
+                  <input id="deviceSerialInput" name="serial" type="text" list="deviceSuggestions" placeholder="Search device serial or name" required>
                   <button type="button" class="secondary scan-button" id="scanDeviceBarcodeButton">Scan Barcode</button>
                 </div>
               </label>
@@ -202,6 +218,9 @@
             <div id="durationWarning" class="duration-warning is-hidden">
               This checkout is longer than 5 days. Please make sure the device is fully charged and charger access is planned.
             </div>
+
+            <datalist id="agentSuggestions"></datalist>
+            <datalist id="deviceSuggestions"></datalist>
           </article>
 
           <article class="card">
@@ -448,6 +467,85 @@
             </div>
           </article>
         </div>
+
+        <article class="card admin-users-card">
+          <div class="card-header">
+            <div>
+              <p class="card-kicker">User Directory</p>
+              <h3>Edit Existing Users</h3>
+            </div>
+          </div>
+
+          <div class="toolbar">
+            <label>
+              <span>Search Users</span>
+              <input id="userAdminSearch" type="search" placeholder="Search by agent ID, name, username, or role">
+            </label>
+          </div>
+
+          <div class="directory-layout admin-user-layout">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Agent ID</th>
+                    <th>Full Name</th>
+                    <th>Role</th>
+                    <th>Username</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="userAdminTableBody"></tbody>
+              </table>
+            </div>
+
+            <aside class="detail-card">
+              <h4>Edit User</h4>
+              <form id="editUserForm" class="form-stack">
+                <input id="editUserOriginalAgentId" type="hidden">
+
+                <label>
+                  <span>Agent ID</span>
+                  <input id="editUserAgentIdInput" type="text" placeholder="Select a user to edit" required>
+                </label>
+
+                <label>
+                  <span>Full Name</span>
+                  <input id="editUserFullNameInput" type="text" placeholder="Full name" required>
+                </label>
+
+                <div class="split-fields admin-split">
+                  <label>
+                    <span>Role</span>
+                    <select id="editUserRoleSelect">
+                      <option value="Agent">Ramp User</option>
+                      <option value="Admin/Supervisor">Admin</option>
+                    </select>
+                  </label>
+
+                  <label>
+                    <span>Username</span>
+                    <input id="editUserUsernameInput" type="text" placeholder="username" required>
+                  </label>
+                </div>
+
+                <label>
+                  <span>Password</span>
+                  <input id="editUserPasswordInput" type="text" placeholder="Password" required>
+                </label>
+
+                <div class="button-row">
+                  <button type="submit">Save User Changes</button>
+                  <button id="cancelUserEditButton" type="button" class="secondary">Clear Selection</button>
+                </div>
+              </form>
+
+              <div id="userEditPlaceholder" class="detail-placeholder">
+                Select a user from the list to update their profile, role, username, or password.
+              </div>
+            </aside>
+          </div>
+        </article>
       </section>
     </main>
   </div>
